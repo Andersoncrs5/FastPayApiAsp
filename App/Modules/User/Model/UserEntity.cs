@@ -6,7 +6,7 @@ public class UserEntity : IdentityUser<long>
 {       
     public string FullName { get; set; } = null!;
 
-    public bool IsActive { get; set; } = true;
+    public bool Active { get; set; } = true;
 
     public DateTimeOffset CreatedAt { get; set; }
 
