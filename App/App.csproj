@@ -45,7 +45,20 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Folder Include="Modules\" />
+      <Folder Include="Modules\Base\Controller\" />
+      <Folder Include="Modules\Base\Dto\Requests\" />
+      <Folder Include="Modules\Base\Dto\Responses\" />
+      <Folder Include="Modules\Base\Mapper\" />
+      <Folder Include="Modules\Base\Model\" />
+      <Folder Include="Modules\Base\Repositories\" />
+      <Folder Include="Modules\Base\Services\" />
+      <Folder Include="Modules\Base\Validators\" />
+      <Folder Include="Modules\User\Controller\" />
+      <Folder Include="Modules\User\Dto\Requests\" />
+      <Folder Include="Modules\User\Dto\Responses\" />
+      <Folder Include="Modules\User\Mapper\" />
+      <Folder Include="Modules\User\Services\" />
+      <Folder Include="Modules\User\Validators\" />
     </ItemGroup>
 
 </Project>
