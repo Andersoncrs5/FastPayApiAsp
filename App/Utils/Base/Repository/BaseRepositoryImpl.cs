@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using App.Config.Database;
 using Dapper;
 
@@ -15,14 +16,23 @@ public abstract class BaseRepositoryImpl<
     protected readonly IDatabase Database = database;
     protected readonly string TableName = tableName;
 
-    private static readonly string[] EntityProperties = typeof(TEntity)
+    private static readonly Dictionary<string, string> PropertyToColumnMap = typeof(TEntity)
         .GetProperties(BindingFlags.Public | BindingFlags.Instance)
-        .Select(p => p.Name)
-        .ToArray();
+        .Where(p => p.CanRead && p.CanWrite)
+        .ToDictionary(
+            p => p.Name,
+            p => ToSnakeCase(p.Name)
+        );
+
+    static BaseRepositoryImpl()
+    {
+        DefaultTypeMap.MatchNamesWithUnderscores = true;
+    }
 
     public virtual async Task<TEntity?> GetByIdAsync(TId id)
     {
-        var columns = string.Join(", ", EntityProperties);
+        var selectClauses = PropertyToColumnMap.Select(kvp => $"{kvp.Value} AS {kvp.Key}");
+        var columns = string.Join(", ", selectClauses);
         var sql = $"SELECT {columns} FROM {TableName} WHERE id = @Id;";
 
         await using var connection = await Database.OpenConnectionAsync();
@@ -45,8 +55,8 @@ public abstract class BaseRepositoryImpl<
 
     public virtual async Task CreateAsync(TEntity entity)
     {
-        string columns = string.Join(", ", EntityProperties);
-        string values = string.Join(", ", EntityProperties.Select(p => $"@{p}"));
+        var columns = string.Join(", ", PropertyToColumnMap.Values);
+        var values = string.Join(", ", PropertyToColumnMap.Keys.Select(p => $"@{p}"));
         var sql = $"INSERT INTO {TableName} ({columns}) VALUES ({values});";
 
         await using var connection = await Database.OpenConnectionAsync();
@@ -56,8 +66,8 @@ public abstract class BaseRepositoryImpl<
 
     public virtual async Task UpdateAsync(TEntity entity)
     {
-        var propertiesToUpdate = EntityProperties.Where(p => !p.Equals("Id", StringComparison.OrdinalIgnoreCase));
-        var setClause = string.Join(", ", propertiesToUpdate.Select(p => $"{p} = @{p}"));
+        var propertiesToUpdate = PropertyToColumnMap.Where(kvp => !kvp.Key.Equals("Id", StringComparison.OrdinalIgnoreCase));
+        var setClause = string.Join(", ", propertiesToUpdate.Select(kvp => $"{kvp.Value} = @{kvp.Key}"));
         var sql = $"UPDATE {TableName} SET {setClause} WHERE id = @Id;";
 
         await using var connection = await Database.OpenConnectionAsync();
@@ -81,5 +91,12 @@ public abstract class BaseRepositoryImpl<
         await using var connection = await Database.OpenConnectionAsync();
 
         return await connection.ExecuteAsync(sql, new { Id = id });
+    }
+
+    private static string ToSnakeCase(string input)
+    {
+        if (string.IsNullOrEmpty(input)) return input;
+        
+        return Regex.Replace(input, "(?<!^)([A-Z][a-z]|(?<=[a-z])[A-Z])", "_$1").ToLowerInvariant();
     }
 }
