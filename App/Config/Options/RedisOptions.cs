@@ -7,7 +7,7 @@ public sealed class RedisOptions
     public const string SectionName = "Redis";
 
     [Required]
-    public required string ConnectionString { get; init; }
+    public required string ConnectionString { get; set; }
 
-    public string InstanceName { get; init; } = "FastPay";
+    public string InstanceName { get; set; } = "FastPay";
 }
