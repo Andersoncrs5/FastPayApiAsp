@@ -10,10 +10,18 @@ public sealed class MigrationRunner(
     public async Task RunAsync()
     {
         await using var connection = await database.OpenConnectionAsync();
+        
+        const string sql = """
+                           CREATE TABLE IF NOT EXISTS schema_migrations
+                           (
+                               version INTEGER PRIMARY KEY,
+                               name TEXT NOT NULL,
+                               executed_at TIMESTAMPTZ NOT NULL
+                           );
+                           """;
 
-        await connection.OpenAsync();
-
-
+        await connection.ExecuteAsync(sql);
+        
         foreach (var migration in migrations.OrderBy(x => x.Version))
         {
             var executed = await connection.ExecuteScalarAsync<int?>(
@@ -27,13 +35,10 @@ public sealed class MigrationRunner(
                     Version = migration.Version
                 });
 
-
             if (executed.HasValue)
                 continue;
 
-
             await migration.UpAsync(connection);
-
 
             await connection.ExecuteAsync(
                 """
