@@ -3,7 +3,7 @@ using Npgsql;
 
 namespace App.Config.Database.Migrations;
 
-public sealed class V002CreateUsersTable : IMigration
+public sealed class V001CreateUsersTable : IMigration
 {
     public int Version => 1;
 
@@ -43,7 +43,7 @@ public sealed class V002CreateUsersTable : IMigration
                            
                                full_name           VARCHAR(255) NOT NULL,
                            
-                               is_active           BOOLEAN NOT NULL DEFAULT TRUE,
+                               active           BOOLEAN NOT NULL DEFAULT TRUE,
                            
                                created_at          TIMESTAMPTZ NOT NULL,
                            
@@ -59,7 +59,7 @@ public sealed class V002CreateUsersTable : IMigration
                            ON users(normalized_email);
                            
                            CREATE INDEX ix_users_active
-                           ON users(is_active);
+                           ON users(active);
                            
                            CREATE INDEX ix_users_created_at
                            ON users(created_at);
