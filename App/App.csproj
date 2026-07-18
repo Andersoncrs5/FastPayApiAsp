@@ -1,0 +1,51 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <InvariantGlobalization>true</InvariantGlobalization>
+        <PublishAot>true</PublishAot>
+        <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Asp.Versioning.Mvc" Version="10.0.0" />
+        <PackageReference Include="AspNetCore.HealthChecks.NpgSql" Version="9.0.0" />
+        <PackageReference Include="AspNetCore.HealthChecks.Redis" Version="9.0.0" />
+        <PackageReference Include="Confluent.Kafka" Version="2.15.0" />
+        <PackageReference Include="Dapper" Version="2.1.79" />
+        <PackageReference Include="Dapper.AOT" Version="1.0.52" />
+        <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
+        <PackageReference Include="Hellang.Middleware.ProblemDetails" Version="6.5.1" />
+        <PackageReference Include="IdGen" Version="3.0.7" />
+        <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.10" />
+        <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.9"/>
+        <PackageReference Include="Microsoft.AspNetCore.ResponseCompression" Version="2.3.11" />
+        <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.10" />
+        <PackageReference Include="Npgsql" Version="10.0.3" />
+        <PackageReference Include="Npgsql.OpenTelemetry" Version="10.0.3" />
+        <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.17.0" />
+        <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.17.0" />
+        <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.16.0" />
+        <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.16.0" />
+        <PackageReference Include="Polly" Version="8.7.0" />
+        <PackageReference Include="Riok.Mapperly" Version="5.0.0-next.10" />
+        <PackageReference Include="Serilog" Version="4.4.0" />
+        <PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
+        <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
+        <PackageReference Include="StackExchange.Redis" Version="3.0.17" />
+        <PackageReference Include="System.Security.Cryptography.Xml" Version="10.0.10" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Content Include="..\.dockerignore">
+        <Link>.dockerignore</Link>
+      </Content>
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="Modules\" />
+    </ItemGroup>
+
+</Project>
