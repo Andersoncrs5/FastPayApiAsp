@@ -1,9 +1,13 @@
+using System.Text.Json;
 using App.Config.Database;
 using App.Config.Exceptions;
 using App.Config.Extensions;
 using App.Config.Options;
+using App.Config.Snowflake;
 using Asp.Versioning;
 using IdGen;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
 using Npgsql;
 using OpenTelemetry.Metrics;
@@ -12,6 +16,8 @@ using OpenTelemetry.Trace;
 using Serilog;
 using StackExchange.Redis;
 using IDatabase = App.Config.Database.IDatabase;
+using App.Config.Database.Migrations;
+using App.Modules.User.Repositories;
 
 var builder = WebApplication.CreateSlimBuilder(args);
 
@@ -48,19 +54,42 @@ builder.Services.AddSingleton<IConnectionMultiplexer>(provider =>
 // });
 
 
+
 // ============================
-// POSTGRES 
+// Heathy
 // ============================
+
+builder.Services
+    .AddHealthChecks()
+    .AddCheck(
+        "self",
+        () => HealthCheckResult.Healthy(),
+        tags: ["live"])
+    .AddNpgSql(
+        builder.Configuration.GetConnectionString("Postgres")!,
+        name: "postgres",
+        tags: ["ready"])
+    .AddRedis(
+        builder.Configuration["Redis:ConnectionString"]!,
+        name: "redis",
+        tags: ["ready"]);
+
+// ============================
+// Snowflake ID 
+// ============================
+
+builder.Services.AddSingleton<ISnowflakeGenerator, SnowflakeGenerator>();
 
 builder.Services.AddSingleton<IIdGenerator<long>>(_ =>
 {
-    var structure = new IdStructure(45, 2, 16);
+    var structure = new IdStructure(
+        timestampBits: 45,
+        generatorIdBits: 2,
+        sequenceBits: 16);
 
-    var generator = new IdGenerator(
-        generatorId: 1
-        );
-
-    return generator;
+    return new IdGenerator(
+        generatorId: 1,
+        new IdGeneratorOptions(structure));
 });
 
 // ============================
@@ -68,6 +97,23 @@ builder.Services.AddSingleton<IIdGenerator<long>>(_ =>
 // ============================
 
 builder.Services.AddSingleton<IDatabase, Database>();
+
+// ============================
+// DATABASE MIGRATIONS
+// ============================
+
+builder.Services.AddSingleton<IMigration, V001CreateSchemaMigrationsTable>();
+builder.Services.AddSingleton<IMigration, V002CreateUsersTable>();
+
+builder.Services.AddSingleton<MigrationRunner>();
+
+// ============================
+// Application Services
+// ============================
+
+builder.Services.AddScoped<IUserRepository, UserRepository>();
+
+// builder.Services.AddFastPayModules();
 
 // ============================
 // OpenTelemetry + SigNoz
@@ -175,6 +221,18 @@ if (app.Environment.IsDevelopment())
 }
 
 // ============================
+// RUN DATABASE MIGRATIONS
+// ============================
+
+using (var scope = app.Services.CreateScope())
+{
+    var runner = scope.ServiceProvider
+        .GetRequiredService<MigrationRunner>();
+
+    await runner.RunAsync();
+}
+
+// ============================
 // Middleware Pipeline
 // ============================
 
@@ -191,6 +249,48 @@ app.UseAuthentication();
 app.UseResponseCompression();
 
 app.UseAuthorization();
+
+
+app.MapHealthChecks(
+    "/health/live",
+    new HealthCheckOptions
+    {
+        Predicate = check => check.Tags.Contains("live")
+    });
+
+app.MapHealthChecks(
+    "/health/ready",
+    new HealthCheckOptions
+    {
+        Predicate = check => check.Tags.Contains("ready")
+    });
+
+
+app.MapHealthChecks(
+    "/health/ready",
+    new HealthCheckOptions
+    {
+        Predicate = check => check.Tags.Contains("ready"),
+        ResponseWriter = async (context, report) =>
+        {
+            context.Response.ContentType = "application/json";
+
+            var response = new
+            {
+                status = report.Status.ToString(),
+                checks = report.Entries.Select(entry => new
+                {
+                    name = entry.Key,
+                    status = entry.Value.Status.ToString(),
+                    duration = entry.Value.Duration
+                }),
+                duration = report.TotalDuration
+            };
+
+            await context.Response.WriteAsync(
+                JsonSerializer.Serialize(response));
+        }
+    });
 
 // ============================
 // Endpoints
