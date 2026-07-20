@@ -4,6 +4,8 @@ namespace App.Modules.User.Model;
 
 public class UserEntity : IdentityUser<long>
 {       
+    public readonly static string _tableName = "users";
+    
     public string FullName { get; set; } = null!;
 
     public bool Active { get; set; } = true;
