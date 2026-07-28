@@ -1,10 +1,5 @@
-using App.Config.Database;
-using App.Modules.User.Model;
-using App.Modules.User.Repositories;
-using App.Tests.Config; 
-using Bogus;
+using App.Tests.Config;
 using FluentAssertions;
-using Microsoft.Extensions.DependencyInjection;
 using Xunit.Abstractions;
 
 namespace App.Tests.Repositories;
@@ -29,9 +24,9 @@ public class UserRepositoryTest: BaseIntegrationTest
     [Fact]
     public async Task ExistsById_Should_Return_False()
     {
-        long id = _faker.Random.Long(100000, 999999);
+        long id = Faker.Random.Long(100000, 999999);
         
-        bool exists = await _userRepository.ExistsByIdAsync(id);
+        bool exists = await UserRepository.ExistsByIdAsync(id);
         
         exists.Should().BeFalse();
     }
@@ -41,7 +36,7 @@ public class UserRepositoryTest: BaseIntegrationTest
     {
         var user = await CreateUser();
         
-        bool exists = await _userRepository.ExistsByIdAsync(user.Id);
+        bool exists = await UserRepository.ExistsByIdAsync(user.Id);
         
         exists.Should().BeTrue();
     }
@@ -51,9 +46,9 @@ public class UserRepositoryTest: BaseIntegrationTest
     {
         var user = await CreateUser();
         
-        await _userRepository.DeleteAsync(user.Id);
+        await UserRepository.DeleteAsync(user.Id);
         
-        bool exists = await _userRepository.ExistsByIdAsync(user.Id);
+        bool exists = await UserRepository.ExistsByIdAsync(user.Id);
         
         exists.Should().BeFalse();
     }
@@ -63,9 +58,9 @@ public class UserRepositoryTest: BaseIntegrationTest
     {
         var user = await CreateUser();
 
-        long count = await _userRepository.DeleteAndCountAsync(user.Id);
+        long count = await UserRepository.DeleteAndCountAsync(user.Id);
 
-        bool exists = await _userRepository.ExistsByIdAsync(user.Id);
+        bool exists = await UserRepository.ExistsByIdAsync(user.Id);
         
         exists.Should().BeFalse();
         count.Should().Be(1);
@@ -76,11 +71,8 @@ public class UserRepositoryTest: BaseIntegrationTest
     {
         var user = await CreateUser();
 
-        // ====================================================================
-        // 2. TESTAR GET BY ID & EXISTS
-        // ====================================================================
-        var dbUser = await _userRepository.GetByIdAsync(user.Id);
-        var exists = await _userRepository.ExistsByIdAsync(user.Id);
+        var dbUser = await UserRepository.GetByIdAsync(user.Id);
+        var exists = await UserRepository.ExistsByIdAsync(user.Id);
 
         dbUser.Should().NotBeNull();
         dbUser!.Id.Should().Be(user.Id);
@@ -88,24 +80,63 @@ public class UserRepositoryTest: BaseIntegrationTest
         dbUser.FullName.Should().Be(user.FullName);
         exists.Should().BeTrue();
 
-        // ====================================================================
-        // 3. TESTAR UPDATE
-        // ====================================================================
         dbUser.FullName = "Nome Alterado via Teste";
         dbUser.UpdatedAt = DateTime.UtcNow;
         
-        await _userRepository.UpdateAsync(dbUser);
+        await UserRepository.UpdateAsync(dbUser);
         
-        var updatedDbUser = await _userRepository.GetByIdAsync(user.Id);
+        var updatedDbUser = await UserRepository.GetByIdAsync(user.Id);
         updatedDbUser!.FullName.Should().Be("Nome Alterado via Teste");
 
-        // ====================================================================
-        // 4. TESTAR DELETE AND COUNT
-        // ====================================================================
-        var affectedRows = await _userRepository.DeleteAndCountAsync(user.Id);
-        var existsAfterDelete = await _userRepository.ExistsByIdAsync(user.Id);
+        var affectedRows = await UserRepository.DeleteAndCountAsync(user.Id);
+        var existsAfterDelete = await UserRepository.ExistsByIdAsync(user.Id);
 
-        affectedRows.Should().Be(1); // 1 linha deletada
+        affectedRows.Should().Be(1);
         existsAfterDelete.Should().BeFalse();
     }
+    
+    [Fact]
+    public async Task ExistsByUsername_Should_Return_True_WhenUsernameHasSameCase()
+    {
+        var user = await CreateUser();
+
+        bool exists = await UserRepository.ExistsByUsernameAsync(
+            user.UserName);
+
+        exists.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ExistsByUsername_Should_Return_True_WhenUsernameHasDifferentCase()
+    {
+        var user = await CreateUser();
+
+        bool exists = await UserRepository.ExistsByUsernameAsync(
+            user.UserName.ToUpperInvariant());
+
+        exists.Should().BeTrue();
+    }
+
+
+    [Fact]
+    public async Task ExistsByUsername_Should_Return_True_WhenUsernameIsLowerCase()
+    {
+        var user = await CreateUser();
+
+        bool exists = await UserRepository.ExistsByUsernameAsync(
+            user.UserName.ToLowerInvariant());
+
+        exists.Should().BeTrue();
+    }
+
+
+    [Fact]
+    public async Task ExistsByUsername_Should_Return_False_WhenUsernameDoesNotExist()
+    {
+        bool exists = await UserRepository.ExistsByUsernameAsync(
+            "username_that_does_not_exist");
+
+        exists.Should().BeFalse();
+    }
+    
 }
