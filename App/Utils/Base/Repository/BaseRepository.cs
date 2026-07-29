@@ -22,7 +22,7 @@ public interface BaseRepository<TEntity, TId>
         TId id
     );
     
-    Task<long> DeleteAndCountAsync(
+    Task<int> DeleteAndCountAsync(
         TId id
     );
     

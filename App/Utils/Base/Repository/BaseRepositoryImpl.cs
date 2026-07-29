@@ -1,19 +1,22 @@
-using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Text.RegularExpressions;
-using App.Config.Database;
+using App.Config.Database.Session;
+using App.Config.Tx;
+using App.Utils.Base.Entity;
 using Dapper;
 
 namespace App.Utils.Base.Repository;
 
 public abstract class BaseRepositoryImpl<
-    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties)] TEntity, TId>(
-    IDatabase database, 
-    string tableName) 
-    : BaseRepository<TEntity, TId>
+    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties)]
+    TEntity,
+    TId>(
+    IDatabaseSession database,
+    string tableName)
+    : BaseRepository<TEntity , TId> where TEntity : BaseEntity
 {
-    protected readonly IDatabase Database = database;
+    protected readonly IDatabaseSession Database = database;
     protected readonly string TableName = tableName;
 
     private static readonly Dictionary<string, string> PropertyToColumnMap = typeof(TEntity)
@@ -21,82 +24,122 @@ public abstract class BaseRepositoryImpl<
         .Where(p => p.CanRead && p.CanWrite)
         .ToDictionary(
             p => p.Name,
-            p => ToSnakeCase(p.Name)
-        );
+            p => ToSnakeCase(p.Name));
+
+    private static readonly string SelectColumns =
+        string.Join(", ", PropertyToColumnMap.Select(kvp => $"{kvp.Value} AS {kvp.Key}"));
+
+    private static readonly string InsertColumns =
+        string.Join(", ", PropertyToColumnMap.Values);
+
+    private static readonly string InsertValues =
+        string.Join(", ", PropertyToColumnMap.Keys.Select(p => $"@{p}"));
+
+    private static readonly string UpdateClause =
+        string.Join(", ",
+            PropertyToColumnMap
+                .Where(kvp => !kvp.Key.Equals("Id", StringComparison.OrdinalIgnoreCase))
+                .Select(kvp => $"{kvp.Value} = @{kvp.Key}"));
 
     static BaseRepositoryImpl()
     {
         DefaultTypeMap.MatchNamesWithUnderscores = true;
     }
 
-    public virtual async Task<TEntity?> GetByIdAsync(TId id)
+    public virtual Task<TEntity?> GetByIdAsync(TId id)
     {
-        var selectClauses = PropertyToColumnMap.Select(kvp => $"{kvp.Value} AS {kvp.Key}");
-        var columns = string.Join(", ", selectClauses);
-        var sql = $"SELECT {columns} FROM {TableName} WHERE id = @Id;";
+        var sql = $"""
+            SELECT {SelectColumns}
+            FROM {TableName}
+            WHERE id = @Id;
+            """;
 
-        await using var connection = await Database.OpenConnectionAsync();
-
-        return await connection.QuerySingleOrDefaultAsync<TEntity>(
-            sql, 
-            new { Id = id });
+        return Database.Connection.QuerySingleOrDefaultAsync<TEntity>(
+            sql,
+            new { Id = id },
+            Database.Transaction);
     }
 
-    public virtual async Task<bool> ExistsByIdAsync(TId id)
+    public virtual Task<bool> ExistsByIdAsync(TId id)
     {
-        var sql = $"SELECT EXISTS (SELECT 1 FROM {TableName} WHERE id = @Id);";
+        var sql = $"""
+            SELECT EXISTS (
+                SELECT 1
+                FROM {TableName}
+                WHERE id = @Id
+            );
+            """;
 
-        await using var connection = await Database.OpenConnectionAsync();
-
-        return await connection.ExecuteScalarAsync<bool>(
-            sql, 
-            new { Id = id });
+        return Database.Connection.ExecuteScalarAsync<bool>(
+            sql,
+            new { Id = id },
+            Database.Transaction);
     }
 
-    public virtual async Task CreateAsync(TEntity entity)
+    public virtual Task CreateAsync(TEntity entity)
     {
-        var columns = string.Join(", ", PropertyToColumnMap.Values);
-        var values = string.Join(", ", PropertyToColumnMap.Keys.Select(p => $"@{p}"));
-        var sql = $"INSERT INTO {TableName} ({columns}) VALUES ({values});";
+        entity.CreatedAt = DateTimeOffset.UtcNow;
+        
+        var sql = $"""
+            INSERT INTO {TableName} ({InsertColumns})
+            VALUES ({InsertValues});
+            """;
 
-        await using var connection = await Database.OpenConnectionAsync();
-
-        await connection.ExecuteAsync(sql, entity);
+        return Database.Connection.ExecuteAsync(
+            sql,
+            entity,
+            Database.Transaction);
     }
 
-    public virtual async Task UpdateAsync(TEntity entity)
+    public virtual Task UpdateAsync(TEntity entity)
     {
-        var propertiesToUpdate = PropertyToColumnMap.Where(kvp => !kvp.Key.Equals("Id", StringComparison.OrdinalIgnoreCase));
-        var setClause = string.Join(", ", propertiesToUpdate.Select(kvp => $"{kvp.Value} = @{kvp.Key}"));
-        var sql = $"UPDATE {TableName} SET {setClause} WHERE id = @Id;";
+        var sql = $"""
+            UPDATE {TableName}
+            SET {UpdateClause}
+            WHERE id = @Id;
+            """;
 
-        await using var connection = await Database.OpenConnectionAsync();
-
-        await connection.ExecuteAsync(sql, entity);
+        entity.UpdatedAt = DateTimeOffset.UtcNow;
+        return Database.Connection.ExecuteAsync(
+            sql,
+            entity,
+            Database.Transaction);
     }
 
-    public virtual async Task DeleteAsync(TId id)
+    public virtual Task DeleteAsync(TId id)
     {
-        var sql = $"DELETE FROM {TableName} WHERE id = @Id;";
+        var sql = $"""
+            DELETE FROM {TableName}
+            WHERE id = @Id;
+            """;
 
-        await using var connection = await Database.OpenConnectionAsync();
-
-        await connection.ExecuteAsync(sql, new { Id = id });
+        return Database.Connection.ExecuteAsync(
+            sql,
+            new { Id = id },
+            Database.Transaction);
     }
 
-    public virtual async Task<long> DeleteAndCountAsync(TId id)
+    public virtual Task<int> DeleteAndCountAsync(TId id)
     {
-        var sql = $"DELETE FROM {TableName} WHERE id = @Id;";
+        var sql = $"""
+            DELETE FROM {TableName}
+            WHERE id = @Id;
+            """;
 
-        await using var connection = await Database.OpenConnectionAsync();
-
-        return await connection.ExecuteAsync(sql, new { Id = id });
+        return Database.Connection.ExecuteAsync(
+            sql,
+            new { Id = id },
+            Database.Transaction);
     }
 
     private static string ToSnakeCase(string input)
     {
-        if (string.IsNullOrEmpty(input)) return input;
-        
-        return Regex.Replace(input, "(?<!^)([A-Z][a-z]|(?<=[a-z])[A-Z])", "_$1").ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(input))
+            return input;
+
+        return Regex.Replace(
+            input,
+            "(?<!^)([A-Z][a-z]|(?<=[a-z])[A-Z])",
+            "_$1").ToLowerInvariant();
     }
 }
