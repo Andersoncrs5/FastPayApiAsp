@@ -1,5 +1,7 @@
 using App.Config.Database;
 using App.Config.Tx;
+using App.Modules.Role.Model;
+using App.Modules.Role.Repositories;
 using App.Modules.User.Model;
 using App.Modules.User.Repositories;
 using Bogus;
@@ -21,6 +23,7 @@ public abstract class BaseIntegrationTest : IAsyncDisposable
 
     protected readonly IServiceScope Scope;
     protected readonly UserRepository UserRepository;
+    protected readonly RoleRepository RoleRepository;
 
     protected BaseIntegrationTest(DatabaseFixture factory)
     {
@@ -34,12 +37,33 @@ public abstract class BaseIntegrationTest : IAsyncDisposable
             Scope.ServiceProvider.GetRequiredService<IDatabase>();
         
         var session = new TestDbSession(database);
-
         
         UserRepository = new UserRepository(session);
+        RoleRepository = new RoleRepository(session);
     }
 
+    public async Task<RoleEntity> CreateRole(bool active = true)
+    {
+        long id = Faker.Random.Long(100000000, 99999999999);
+        string name = Faker.Name.FindName();
+        var date = DateTimeOffset.UtcNow;
+        
+        var role = new RoleEntity
+        {
+            Id = id,
+            Name = name,
+            Description = Faker.Lorem.Sentence(),
+            NormalizedName = name.ToUpper(),
+            Active = active,
+            CreatedAt = date,
+            UpdatedAt = date
+        };
 
+        await RoleRepository.CreateAsync(role);
+        
+        return role;
+    }
+    
     public async Task<UserEntity> CreateUser()
     {
         var id = Faker.Random.Long(10000000, 9999999999);
