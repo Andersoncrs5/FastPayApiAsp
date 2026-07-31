@@ -1,9 +1,14 @@
 using System.Text.Json;
-using App.Config.Database;
+using App.Config.Database.Migrations;
 using App.Config.Exceptions;
 using App.Config.Extensions;
 using App.Config.Options;
+using App.Config.Security;
+using App.Config.Tx;
 using App.Config.Snowflake;
+using App.Modules.Role.Repositories;
+using App.Modules.Role.Services.Base;
+using App.Modules.Role.Services.Provider;
 using Asp.Versioning;
 using IdGen;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -15,9 +20,9 @@ using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using Serilog;
 using StackExchange.Redis;
-using IDatabase = App.Config.Database.IDatabase;
-using App.Config.Database.Migrations;
 using App.Modules.User.Repositories;
+using App.Modules.User.Services.Base;
+using App.Modules.User.Services.Provider;
 
 var builder = WebApplication.CreateSlimBuilder(args);
 
@@ -27,44 +32,23 @@ const string serviceName = "FastPay.App";
 // OPTIONS 
 // ============================
 builder.Services.AddApplicationOptions(builder.Configuration);
-
 builder.Services.AddResponseCompression();
 
 // ============================
 // REDIS
 // ============================
-
 builder.Services.AddSingleton<IConnectionMultiplexer>(provider =>
 {
     RedisOptions options = provider.GetRequiredService<IOptions<RedisOptions>>().Value;
-
     return ConnectionMultiplexer.Connect(options.ConnectionString);
 });
 
 // ============================
-// JSON Source Generator (AOT)
+// HEALTH CHECKS
 // ============================
-
-// builder.Services.ConfigureHttpJsonOptions(options =>
-// {
-//     options.SerializerOptions.TypeInfoResolverChain.Insert(
-//         0,
-//         AppJsonSerializerContext.Default
-//      );
-// });
-
-
-
-// ============================
-// Heathy
-// ============================
-
 builder.Services
     .AddHealthChecks()
-    .AddCheck(
-        "self",
-        () => HealthCheckResult.Healthy(),
-        tags: ["live"])
+    .AddCheck("self", () => HealthCheckResult.Healthy(), tags: ["live"])
     .AddNpgSql(
         builder.Configuration.GetConnectionString("Postgres")!,
         name: "postgres",
@@ -75,9 +59,8 @@ builder.Services
         tags: ["ready"]);
 
 // ============================
-// Snowflake ID 
+// SNOWFLAKE
 // ============================
-
 builder.Services.AddSingleton<ISnowflakeGenerator, SnowflakeGenerator>();
 
 builder.Services.AddSingleton<IIdGenerator<long>>(_ =>
@@ -93,32 +76,48 @@ builder.Services.AddSingleton<IIdGenerator<long>>(_ =>
 });
 
 // ============================
-// POSTGRES 
+// POSTGRES
 // ============================
+builder.Services.AddTransient<App.Config.Database.IDatabase, App.Config.Database.Database>();
 
-builder.Services.AddSingleton<IDatabase, Database>();
+// ============================
+// TX
+// ============================
+builder.Services.AddScoped<IRequestDbContext, RequestDbContext>();
+builder.Services.AddScoped<TransactionalMiddleware>();
 
 // ============================
 // DATABASE MIGRATIONS
 // ============================
-
-builder.Services.AddSingleton<IMigration, V001CreateSchemaMigrationsTable>();
-builder.Services.AddSingleton<IMigration, V002CreateUsersTable>();
-
-builder.Services.AddSingleton<MigrationRunner>();
+builder.Services.AddSingleton<App.Config.Database.IMigration, V001CreateUsersTable>();
+builder.Services.AddSingleton<App.Config.Database.IMigration, V002CreateRolesTable>();
+builder.Services.AddSingleton<App.Config.Database.IMigration, V003CreateUserRoleTable>();
+builder.Services.AddSingleton<App.Config.Database.MigrationRunner>();
 
 // ============================
-// Application Services
+// APPLICATION
 // ============================
+builder.Services.AddScoped<IDeleteUserService, DeleteUserService>();
+builder.Services.AddScoped<ICreateUserService, CreateUserService>();
+builder.Services.AddScoped<IUpdateUserService, UpdateUserService>();
+builder.Services.AddScoped<IFindUserByIdService, FindUserByIdService>();
 
+builder.Services.AddScoped<IDeleteRoleService, DeleteRoleService>();
+builder.Services.AddScoped<ICreateRoleService, CreateRoleService>();
+builder.Services.AddScoped<IUpdateRoleService, UpdateRoleService>();
+builder.Services.AddScoped<IFindRoleByIdService, FindRoleByIdService>();
+
+builder.Services.AddSingleton<IPasswordHasher, PasswordHasher>();
+
+// ============================
+// REPOSITORIES
+// ============================
 builder.Services.AddScoped<IUserRepository, UserRepository>();
-
-// builder.Services.AddFastPayModules();
+builder.Services.AddScoped<IRoleRepository, RoleRepository>();
 
 // ============================
-// OpenTelemetry + SigNoz
+// OPENTELEMETRY
 // ============================
-
 builder.Services
     .AddOpenTelemetry()
     .ConfigureResource(resource => resource.AddService(serviceName))
@@ -130,8 +129,7 @@ builder.Services
             .AddNpgsql()
             .AddOtlpExporter(options =>
             {
-                options.Endpoint =
-                    new Uri("http://localhost:4317");
+                options.Endpoint = new Uri("http://localhost:4317");
             });
     })
     .WithMetrics(metrics =>
@@ -141,80 +139,59 @@ builder.Services
             .AddHttpClientInstrumentation()
             .AddOtlpExporter(options =>
             {
-                options.Endpoint =
-                    new Uri("http://localhost:4317");
+                options.Endpoint = new Uri("http://localhost:4317");
             });
     });
 
-
 // ============================
-// OpenAPI (AOT Compatible)
+// OPENAPI
 // ============================
-
 builder.Services.AddOpenApi();
 
-
 // ============================
-// API Versioning
+// VERSIONING
 // ============================
-
 builder.Services
     .AddApiVersioning(options =>
     {
-        options.DefaultApiVersion =
-            new ApiVersion(1);
-
+        options.DefaultApiVersion = new ApiVersion(1);
         options.AssumeDefaultVersionWhenUnspecified = true;
-
         options.ReportApiVersions = true;
     });
 
 // ============================
-// Exceptions
+// EXCEPTIONS
 // ============================
-
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
-
 builder.Services.AddProblemDetails();
 
 builder.Host.UseSerilog();
 
 // ============================
-// Security / Performance
+// SECURITY / PERF
 // ============================
-
+builder.Services.AddAuthorization();
+builder.Services.AddAuthentication();
 builder.Services.AddRateLimiter();
-
 
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
     {
-        policy
-            .AllowAnyOrigin()
-            .AllowAnyHeader()
-            .AllowAnyMethod();
+        policy.AllowAnyOrigin()
+              .AllowAnyHeader()
+              .AllowAnyMethod();
     });
 });
 
-
 // ============================
-// Application Services
+// BUILD
 // ============================
-
-// builder.Services.AddFastPayModules();
-
-
-// ============================
-// Build
-// ============================
-
 var app = builder.Build();
 
 // ============================
-// OpenAPI
+// OPENAPI
 // ============================
-
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
@@ -223,48 +200,35 @@ if (app.Environment.IsDevelopment())
 // ============================
 // RUN DATABASE MIGRATIONS
 // ============================
-
 using (var scope = app.Services.CreateScope())
 {
-    var runner = scope.ServiceProvider
-        .GetRequiredService<MigrationRunner>();
-
+    var runner = scope.ServiceProvider.GetRequiredService<App.Config.Database.MigrationRunner>();
     await runner.RunAsync();
 }
 
 // ============================
-// Middleware Pipeline
+// MIDDLEWARE
 // ============================
-
 app.UseExceptionHandler();
+app.UseMiddleware<TransactionalMiddleware>();
 
 app.UseHttpsRedirection();
-
 app.UseRateLimiter();
-
 // app.UseCors();
 
 app.UseAuthentication();
-
 app.UseResponseCompression();
-
 app.UseAuthorization();
 
-
+// ============================
+// HEALTH
+// ============================
 app.MapHealthChecks(
     "/health/live",
     new HealthCheckOptions
     {
         Predicate = check => check.Tags.Contains("live")
     });
-
-app.MapHealthChecks(
-    "/health/ready",
-    new HealthCheckOptions
-    {
-        Predicate = check => check.Tags.Contains("ready")
-    });
-
 
 app.MapHealthChecks(
     "/health/ready",
@@ -287,21 +251,10 @@ app.MapHealthChecks(
                 duration = report.TotalDuration
             };
 
-            await context.Response.WriteAsync(
-                JsonSerializer.Serialize(response));
+            await context.Response.WriteAsync(JsonSerializer.Serialize(response));
         }
     });
 
-// ============================
-// Endpoints
-// ============================
-
-// app.MapPaymentEndpoints();
-// app.MapCustomerEndpoints();
-// app.MapWebhookEndpoints();
-
-
 app.Run();
-
 
 public partial class Program { }
