@@ -22,12 +22,18 @@ public class Result<T> : IResultState
 
     public static Result<T> Success(T value, int statusCode = 200) 
         => new(true, value, null, statusCode);
-
+    
+    public static Result<T> Created(T value) 
+        => new(true, value, null, 201);
+    
     public static Result<T> Ok(int statusCode = 200, T? value = default) 
         => new(true, value, null, statusCode);
 
     public static Result<T> Failure(List<string> errors, int statusCode = 400) 
         => new(false, default, errors ?? throw new ArgumentNullException(nameof(errors)), statusCode);
+
+    public static Result<T> NotFound(string error) 
+        => new(false, default, new List<string> { error }, 404);
 
     public static Result<T> Failure(string error, int statusCode = 400) 
         => new(false, default, new List<string> { error }, statusCode);
