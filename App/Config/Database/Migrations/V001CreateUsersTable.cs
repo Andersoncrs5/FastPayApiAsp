@@ -1,3 +1,4 @@
+using App.Modules.User.Model;
 using Dapper;
 using Npgsql;
 
@@ -13,8 +14,9 @@ public sealed class V001CreateUsersTable : IMigration
         NpgsqlConnection connection,
         CancellationToken cancellationToken = default)
     {
-        const string sql = """
-                           CREATE TABLE users
+        const string table = UserEntity._tableName;
+        const string sql = $"""
+                           CREATE TABLE {table}
                            (
                                id                  BIGINT PRIMARY KEY,
                            
