@@ -50,11 +50,18 @@
       <Folder Include="Modules\Base\Controller\" />
       <Folder Include="Modules\Base\Dto\Requests\" />
       <Folder Include="Modules\Base\Dto\Responses\" />
+      <Folder Include="Modules\Base\Gateway\" />
       <Folder Include="Modules\Base\Mapper\" />
       <Folder Include="Modules\Base\Model\" />
       <Folder Include="Modules\Base\Repositories\" />
-      <Folder Include="Modules\Base\Services\" />
+      <Folder Include="Modules\Base\Services\Base\" />
+      <Folder Include="Modules\Base\Services\Provider\" />
       <Folder Include="Modules\Base\Validators\" />
+      <Folder Include="Modules\Role\Controller\" />
+      <Folder Include="Modules\Role\Gateway\" />
+      <Folder Include="Modules\Role\Validators\" />
+      <Folder Include="Modules\UserRole\Controller\" />
+      <Folder Include="Modules\UserRole\Validators\" />
       <Folder Include="Modules\User\Controller\" />
       <Folder Include="Modules\User\Validators\" />
     </ItemGroup>
