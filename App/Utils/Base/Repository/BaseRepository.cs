@@ -6,6 +6,8 @@ public interface BaseRepository<TEntity, TId>
         TId id
     );
 
+    Task<int> CountAsync();
+    
     Task<bool> ExistsByIdAsync(
         TId id
     );

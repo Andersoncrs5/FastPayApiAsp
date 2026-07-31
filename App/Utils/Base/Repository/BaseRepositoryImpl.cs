@@ -71,6 +71,18 @@ public abstract class BaseRepositoryImpl<
             Database.Transaction);
     }
 
+    public virtual Task<int> CountAsync()
+    {
+        var sql = $"""
+                   SELECT COUNT(*)
+                   FROM {TableName};
+                   """;
+
+        return Database.Connection.ExecuteScalarAsync<int>(
+            sql,
+            transaction: Database.Transaction);
+    }
+    
     public virtual Task<bool> ExistsByIdAsync(TId id)
     {
         var sql = $"""
