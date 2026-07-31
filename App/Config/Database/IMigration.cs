@@ -10,5 +10,6 @@ public interface IMigration
 
     Task UpAsync(
         NpgsqlConnection connection,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default
+    );
 }
