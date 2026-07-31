@@ -12,6 +12,29 @@ public class UserRoleRepository(IDatabaseSession database)
     : BaseRepositoryImpl<UserRoleEntity, long>(database, UserRoleEntity._tableName),
         IUserRoleRepository
 {
+    public async Task<List<UserRoleEntity>> GetAllByUserId(
+        long userId,
+        int limit = 20)
+    {
+        const string sql = $"""
+                            SELECT *
+                            FROM {UserRoleEntity._tableName}
+                            WHERE user_id = @UserId
+                            LIMIT @Limit;
+                            """;
+
+        var list = await Database.Connection.QueryAsync<UserRoleEntity>(
+            sql,
+            new
+            {
+                UserId = userId,
+                Limit = limit
+            },
+            Database.Transaction);
+
+        return list.ToList();
+    }
+    
     public async Task<UserRoleEntity?> GetByUserIdAndRoleId(
         long userId,
         long roleId)
@@ -20,7 +43,8 @@ public class UserRoleRepository(IDatabaseSession database)
                             SELECT *
                             FROM {UserRoleEntity._tableName}
                             WHERE user_id = @UserId
-                              AND role_id = @RoleId;
+                              AND role_id = @RoleId
+                            LIMIT 1;
                             """;
 
         return await Database.Connection.QuerySingleOrDefaultAsync<UserRoleEntity>(
