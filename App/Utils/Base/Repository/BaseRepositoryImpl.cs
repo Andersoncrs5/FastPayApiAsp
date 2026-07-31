@@ -21,10 +21,21 @@ public abstract class BaseRepositoryImpl<
 
     private static readonly Dictionary<string, string> PropertyToColumnMap = typeof(TEntity)
         .GetProperties(BindingFlags.Public | BindingFlags.Instance)
-        .Where(p => p.CanRead && p.CanWrite)
+        .Where(IsDatabaseProperty)
         .ToDictionary(
             p => p.Name,
             p => ToSnakeCase(p.Name));
+    
+    private static bool IsDatabaseProperty(PropertyInfo property)
+    {
+        if (!property.CanRead || !property.CanWrite) return false;
+
+        var type = Nullable.GetUnderlyingType(property.PropertyType) ?? property.PropertyType;
+
+        if (type.IsClass && type != typeof(string)) return false;
+
+        return true;
+    }
 
     private static readonly string SelectColumns =
         string.Join(", ", PropertyToColumnMap.Select(kvp => $"{kvp.Value} AS {kvp.Key}"));
