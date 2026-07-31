@@ -140,4 +140,64 @@ public class RoleRepositoryTest : BaseIntegrationTest
         exists.Should().BeFalse();
     }
     
+    [Fact]
+    public async Task GetAllByIds_Should_Return_OnlyRequestedRoles()
+    {
+        var role1 = await CreateRole();
+        var role2 = await CreateRole();
+        var role3 = await CreateRole();
+
+        var result = await RoleRepository.GetAllByIdsAsync(
+        [
+            role1.Id,
+            role3.Id
+        ]);
+
+        result.Should().HaveCount(2);
+
+        result.Select(r => r.Id)
+            .Should()
+            .BeEquivalentTo([role1.Id, role3.Id]);
+    }
+
+    [Fact]
+    public async Task GetAllByIds_Should_Return_Empty_WhenIdsDoNotExist()
+    {
+        var ids = new List<long>
+        {
+            Faker.Random.Long(1_000_000, 2_000_000),
+            Faker.Random.Long(2_000_001, 3_000_000)
+        };
+
+        var result = await RoleRepository.GetAllByIdsAsync(ids);
+
+        result.Should().NotBeNull();
+        result.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetAllByIds_Should_Return_Empty_WhenIdsListIsEmpty()
+    {
+        var result = await RoleRepository.GetAllByIdsAsync([]);
+
+        result.Should().NotBeNull();
+        result.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetAllByIds_Should_NotReturnDuplicateRoles()
+    {
+        var role = await CreateRole();
+
+        var result = await RoleRepository.GetAllByIdsAsync(
+        [
+            role.Id,
+            role.Id,
+            role.Id
+        ]);
+
+        result.Should().HaveCount(1);
+        result.First().Id.Should().Be(role.Id);
+    }
+    
 }
