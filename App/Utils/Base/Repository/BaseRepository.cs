@@ -27,5 +27,15 @@ public interface BaseRepository<TEntity, TId>
     Task<int> DeleteAndCountAsync(
         TId id
     );
-    
+
+    Task<int> DeleteAllAsync();
+
+    Task<int> DeleteAllByIdAsync(
+        IEnumerable<TId> ids
+    );
+
+    Task<int> CreateAllAsync(IEnumerable<TEntity> entities);
+
+    Task<int> UpdateAllAsync(IEnumerable<TEntity> entities);
+
 }

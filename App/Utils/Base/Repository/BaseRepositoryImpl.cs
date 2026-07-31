@@ -154,7 +154,83 @@ public abstract class BaseRepositoryImpl<
             new { Id = id },
             Database.Transaction);
     }
+    
+    public virtual Task<int> DeleteAllAsync()
+    {
+        var sql = $"""
+                   DELETE FROM {TableName};
+                   """;
 
+        return Database.Connection.ExecuteAsync(
+            sql,
+            transaction: Database.Transaction);
+    }
+
+    public virtual async Task<int> DeleteAllByIdAsync(IEnumerable<TId> ids)
+    {
+        var idList = ids.ToList();
+
+        if (idList.Count == 0)
+            return 0;
+
+        var sql = $"""
+                   DELETE FROM {TableName}
+                   WHERE id = ANY(@Ids);
+                   """;
+
+        return await Database.Connection.ExecuteAsync(
+            sql,
+            new { Ids = idList },
+            Database.Transaction);
+    }
+    
+    public virtual Task<int> CreateAllAsync(IEnumerable<TEntity> entities)
+    {
+        var entityList = entities.ToList();
+
+        if (entityList.Count == 0)
+            return Task.FromResult(0);
+
+        var now = DateTimeOffset.UtcNow;
+
+        foreach (var entity in entityList)
+            entity.CreatedAt = now;
+
+        var sql = $"""
+                   INSERT INTO {TableName} ({InsertColumns})
+                   VALUES ({InsertValues});
+                   """;
+
+        return Database.Connection.ExecuteAsync(
+            sql,
+            entityList,
+            Database.Transaction);
+    }
+
+    public virtual Task<int> UpdateAllAsync(IEnumerable<TEntity> entities)
+    {
+        var entityList = entities.ToList();
+
+        if (entityList.Count == 0)
+            return Task.FromResult(0);
+
+        var now = DateTimeOffset.UtcNow;
+
+        foreach (var entity in entityList)
+            entity.UpdatedAt = now;
+
+        var sql = $"""
+                   UPDATE {TableName}
+                   SET {UpdateClause}
+                   WHERE id = @Id;
+                   """;
+
+        return Database.Connection.ExecuteAsync(
+            sql,
+            entityList,
+            Database.Transaction);
+    }
+    
     private static string ToSnakeCase(string input)
     {
         if (string.IsNullOrWhiteSpace(input))
