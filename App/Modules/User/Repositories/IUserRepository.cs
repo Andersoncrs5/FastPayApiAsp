@@ -5,5 +5,5 @@ namespace App.Modules.User.Repositories;
 
 public interface IUserRepository: BaseRepository<UserEntity, long>
 {
-    
+    Task<bool> ExistsByUsernameAsync(string username);
 }
