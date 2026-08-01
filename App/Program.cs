@@ -4,8 +4,13 @@ using App.Config.Exceptions;
 using App.Config.Extensions;
 using App.Config.Options;
 using App.Config.Security;
+using App.Config.Security.Crypto;
+using App.Config.Security.Password;
 using App.Config.Tx;
 using App.Config.Snowflake;
+using App.Modules.RefreshToken.Repositories;
+using App.Modules.RefreshToken.Services.Base;
+using App.Modules.RefreshToken.Services.Provider;
 using App.Modules.Role.Repositories;
 using App.Modules.Role.Services.Base;
 using App.Modules.Role.Services.Provider;
@@ -23,6 +28,7 @@ using StackExchange.Redis;
 using App.Modules.User.Repositories;
 using App.Modules.User.Services.Base;
 using App.Modules.User.Services.Provider;
+using App.Modules.UserRole.Repositories;
 
 var builder = WebApplication.CreateSlimBuilder(args);
 
@@ -92,6 +98,7 @@ builder.Services.AddScoped<TransactionalMiddleware>();
 builder.Services.AddSingleton<App.Config.Database.IMigration, V001CreateUsersTable>();
 builder.Services.AddSingleton<App.Config.Database.IMigration, V002CreateRolesTable>();
 builder.Services.AddSingleton<App.Config.Database.IMigration, V003CreateUserRoleTable>();
+builder.Services.AddSingleton<App.Config.Database.IMigration, V004CreateRefreshTokenTable>();
 builder.Services.AddSingleton<App.Config.Database.MigrationRunner>();
 
 // ============================
@@ -107,13 +114,18 @@ builder.Services.AddScoped<ICreateRoleService, CreateRoleService>();
 builder.Services.AddScoped<IUpdateRoleService, UpdateRoleService>();
 builder.Services.AddScoped<IFindRoleByIdService, FindRoleByIdService>();
 
+builder.Services.AddScoped<ICreateRefreshTokenService, CreateRefreshTokenService>();
+
 builder.Services.AddSingleton<IPasswordHasher, PasswordHasher>();
+builder.Services.AddSingleton<ICryptoService, CryptoService>();
 
 // ============================
 // REPOSITORIES
 // ============================
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IRoleRepository, RoleRepository>();
+builder.Services.AddScoped<IUserRoleRepository, UserRoleRepository>();
+builder.Services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
 
 // ============================
 // OPENTELEMETRY

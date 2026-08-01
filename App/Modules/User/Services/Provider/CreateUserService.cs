@@ -1,4 +1,4 @@
-using App.Config.Security;
+using App.Config.Security.Password;
 using App.Config.uow;
 using App.Modules.User.Dto.Requests;
 using App.Modules.User.Mapper;

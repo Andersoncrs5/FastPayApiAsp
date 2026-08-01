@@ -19,10 +19,21 @@ public class RefreshTokenRepository(IDatabaseSession database)
 
     public async Task<List<RefreshTokenEntity>> GetAllByUserIdAsync(long userId)
     {
-        const string sql = $""" SELECT * FROM {RefreshTokenEntity._tableName} WHERE user_id = @UserId ORDER BY created_at DESC; """;
+        const string sql = $"""
+                            SELECT * FROM {RefreshTokenEntity._tableName}
+                                     WHERE user_id = @UserId 
+                                     ORDER BY created_at DESC; 
+                            """;
         
-        var tokens = await Database.Connection.QueryAsync<RefreshTokenEntity>( 
-            sql, new { UserId = userId }, Database.Transaction); 
+        IEnumerable<RefreshTokenEntity> tokens = await Database.Connection.QueryAsync<RefreshTokenEntity>( 
+            sql, 
+            new
+            {
+                UserId = userId
+            }, 
+            Database.Transaction
+        );
+        
         return tokens.ToList();
     }
 

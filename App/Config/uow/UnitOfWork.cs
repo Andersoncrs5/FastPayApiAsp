@@ -1,10 +1,12 @@
 using App.Config.Database;
 using App.Config.Options;
 using App.Config.Tx;
+using App.Modules.RefreshToken.Repositories;
 using App.Modules.Role.Repositories;
 using App.Modules.User.Repositories;
 using App.Modules.UserRole.Repositories;
 using App.Utils.Result;
+using IdGen;
 using Microsoft.Extensions.Options;
 using Npgsql;
 
@@ -12,12 +14,14 @@ namespace App.Config.uow;
 
 public sealed class UnitOfWork(
     IRequestDbContext database,
+    IdGenerator idGenerator,
     IOptions<DatabaseOptions> options
     ) : IUnitOfWork
 {
     private IUserRepository? _userRepository;
     private IRoleRepository? _roleRepository;
     private IUserRoleRepository? _userRoleRepository;
+    private IRefreshTokenRepository? _refreshTokenRepository;
     
     public IUserRepository UserRepository
         => _userRepository ??= new UserRepository(database);
@@ -25,6 +29,10 @@ public sealed class UnitOfWork(
         => _roleRepository ??= new RoleRepository(database);
     public IUserRoleRepository UserRoleRepository
         => _userRoleRepository ??= new UserRoleRepository(database);
+    public IRefreshTokenRepository RefreshTokenRepository
+        => _refreshTokenRepository ??= new RefreshTokenRepository(database);
+
+    public IdGenerator IdGenerator { get; } = idGenerator;
     
     private readonly string _connectionString = options.Value.Postgres; 
     
