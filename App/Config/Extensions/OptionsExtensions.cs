@@ -26,6 +26,10 @@ public static class OptionsExtensions
             .ValidateDataAnnotations()
             .ValidateOnStart();
         
+        services
+            .AddOptions<CryptoOptions>()
+            .Bind(configuration.GetSection(CryptoOptions.SectionName));
+        
         return services;
     }
 }
