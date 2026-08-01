@@ -1,85 +1,244 @@
-using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
-using App.Config.Database;
+using System.Text.RegularExpressions;
+using App.Config.Database.Session;
+using App.Config.Tx;
+using App.Utils.Base.Entity;
 using Dapper;
 
 namespace App.Utils.Base.Repository;
 
 public abstract class BaseRepositoryImpl<
-    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties)] TEntity, TId>(
-    IDatabase database, 
-    string tableName) 
-    : BaseRepository<TEntity, TId>
+    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties)]
+    TEntity,
+    TId>(
+    IDatabaseSession database,
+    string tableName)
+    : BaseRepository<TEntity , TId> where TEntity : BaseEntity
 {
-    protected readonly IDatabase Database = database;
+    protected readonly IDatabaseSession Database = database;
     protected readonly string TableName = tableName;
 
-    private static readonly string[] EntityProperties = typeof(TEntity)
+    private static readonly Dictionary<string, string> PropertyToColumnMap = typeof(TEntity)
         .GetProperties(BindingFlags.Public | BindingFlags.Instance)
-        .Select(p => p.Name)
-        .ToArray();
-
-    public virtual async Task<TEntity?> GetByIdAsync(TId id)
+        .Where(IsDatabaseProperty)
+        .ToDictionary(
+            p => p.Name,
+            p => ToSnakeCase(p.Name));
+    
+    private static bool IsDatabaseProperty(PropertyInfo property)
     {
-        var columns = string.Join(", ", EntityProperties);
-        var sql = $"SELECT {columns} FROM {TableName} WHERE id = @Id;";
+        if (!property.CanRead || !property.CanWrite) return false;
 
-        await using var connection = await Database.OpenConnectionAsync();
+        var type = Nullable.GetUnderlyingType(property.PropertyType) ?? property.PropertyType;
 
-        return await connection.QuerySingleOrDefaultAsync<TEntity>(
-            sql, 
-            new { Id = id });
+        if (type.IsClass && type != typeof(string)) return false;
+
+        return true;
     }
 
-    public virtual async Task<bool> ExistsByIdAsync(TId id)
+    private static readonly string SelectColumns =
+        string.Join(", ", PropertyToColumnMap.Select(kvp => $"{kvp.Value} AS {kvp.Key}"));
+
+    private static readonly string InsertColumns =
+        string.Join(", ", PropertyToColumnMap.Values);
+
+    private static readonly string InsertValues =
+        string.Join(", ", PropertyToColumnMap.Keys.Select(p => $"@{p}"));
+
+    private static readonly string UpdateClause =
+        string.Join(", ",
+            PropertyToColumnMap
+                .Where(kvp => !kvp.Key.Equals("Id", StringComparison.OrdinalIgnoreCase))
+                .Select(kvp => $"{kvp.Value} = @{kvp.Key}"));
+
+    static BaseRepositoryImpl()
     {
-        var sql = $"SELECT EXISTS (SELECT 1 FROM {TableName} WHERE id = @Id);";
-
-        await using var connection = await Database.OpenConnectionAsync();
-
-        return await connection.ExecuteScalarAsync<bool>(
-            sql, 
-            new { Id = id });
+        DefaultTypeMap.MatchNamesWithUnderscores = true;
     }
 
-    public virtual async Task CreateAsync(TEntity entity)
+    public virtual Task<TEntity?> GetByIdAsync(TId id)
     {
-        string columns = string.Join(", ", EntityProperties);
-        string values = string.Join(", ", EntityProperties.Select(p => $"@{p}"));
-        var sql = $"INSERT INTO {TableName} ({columns}) VALUES ({values});";
+        var sql = $"""
+            SELECT {SelectColumns}
+            FROM {TableName}
+            WHERE id = @Id;
+            """;
 
-        await using var connection = await Database.OpenConnectionAsync();
-
-        await connection.ExecuteAsync(sql, entity);
+        return Database.Connection.QuerySingleOrDefaultAsync<TEntity>(
+            sql,
+            new { Id = id },
+            Database.Transaction);
     }
 
-    public virtual async Task UpdateAsync(TEntity entity)
+    public virtual Task<int> CountAsync()
     {
-        var propertiesToUpdate = EntityProperties.Where(p => !p.Equals("Id", StringComparison.OrdinalIgnoreCase));
-        var setClause = string.Join(", ", propertiesToUpdate.Select(p => $"{p} = @{p}"));
-        var sql = $"UPDATE {TableName} SET {setClause} WHERE id = @Id;";
+        var sql = $"""
+                   SELECT COUNT(*)
+                   FROM {TableName};
+                   """;
 
-        await using var connection = await Database.OpenConnectionAsync();
+        return Database.Connection.ExecuteScalarAsync<int>(
+            sql,
+            transaction: Database.Transaction);
+    }
+    
+    public virtual Task<bool> ExistsByIdAsync(TId id)
+    {
+        var sql = $"""
+            SELECT EXISTS (
+                SELECT 1
+                FROM {TableName}
+                WHERE id = @Id
+            );
+            """;
 
-        await connection.ExecuteAsync(sql, entity);
+        return Database.Connection.ExecuteScalarAsync<bool>(
+            sql,
+            new { Id = id },
+            Database.Transaction);
     }
 
-    public virtual async Task DeleteAsync(TId id)
+    public virtual Task CreateAsync(TEntity entity)
     {
-        var sql = $"DELETE FROM {TableName} WHERE id = @Id;";
+        entity.CreatedAt = DateTimeOffset.UtcNow;
+        
+        var sql = $"""
+            INSERT INTO {TableName} ({InsertColumns})
+            VALUES ({InsertValues});
+            """;
 
-        await using var connection = await Database.OpenConnectionAsync();
-
-        await connection.ExecuteAsync(sql, new { Id = id });
+        return Database.Connection.ExecuteAsync(
+            sql,
+            entity,
+            Database.Transaction);
     }
 
-    public virtual async Task<long> DeleteAndCountAsync(TId id)
+    public virtual Task UpdateAsync(TEntity entity)
     {
-        var sql = $"DELETE FROM {TableName} WHERE id = @Id;";
+        var sql = $"""
+            UPDATE {TableName}
+            SET {UpdateClause}
+            WHERE id = @Id;
+            """;
 
-        await using var connection = await Database.OpenConnectionAsync();
+        entity.UpdatedAt = DateTimeOffset.UtcNow;
+        return Database.Connection.ExecuteAsync(
+            sql,
+            entity,
+            Database.Transaction);
+    }
 
-        return await connection.ExecuteAsync(sql, new { Id = id });
+    public virtual Task DeleteAsync(TId id)
+    {
+        var sql = $"""
+            DELETE FROM {TableName}
+            WHERE id = @Id;
+            """;
+
+        return Database.Connection.ExecuteAsync(
+            sql,
+            new { Id = id },
+            Database.Transaction);
+    }
+
+    public virtual Task<int> DeleteAndCountAsync(TId id)
+    {
+        var sql = $"""
+            DELETE FROM {TableName}
+            WHERE id = @Id;
+            """;
+
+        return Database.Connection.ExecuteAsync(
+            sql,
+            new { Id = id },
+            Database.Transaction);
+    }
+    
+    public virtual Task<int> DeleteAllAsync()
+    {
+        var sql = $"""
+                   DELETE FROM {TableName};
+                   """;
+
+        return Database.Connection.ExecuteAsync(
+            sql,
+            transaction: Database.Transaction);
+    }
+
+    public virtual async Task<int> DeleteAllByIdAsync(IEnumerable<TId> ids)
+    {
+        var idList = ids.ToList();
+
+        if (idList.Count == 0)
+            return 0;
+
+        var sql = $"""
+                   DELETE FROM {TableName}
+                   WHERE id = ANY(@Ids);
+                   """;
+
+        return await Database.Connection.ExecuteAsync(
+            sql,
+            new { Ids = idList },
+            Database.Transaction);
+    }
+    
+    public virtual Task<int> CreateAllAsync(IEnumerable<TEntity> entities)
+    {
+        var entityList = entities.ToList();
+
+        if (entityList.Count == 0)
+            return Task.FromResult(0);
+
+        var now = DateTimeOffset.UtcNow;
+
+        foreach (var entity in entityList)
+            entity.CreatedAt = now;
+
+        var sql = $"""
+                   INSERT INTO {TableName} ({InsertColumns})
+                   VALUES ({InsertValues});
+                   """;
+
+        return Database.Connection.ExecuteAsync(
+            sql,
+            entityList,
+            Database.Transaction);
+    }
+
+    public virtual Task<int> UpdateAllAsync(IEnumerable<TEntity> entities)
+    {
+        var entityList = entities.ToList();
+
+        if (entityList.Count == 0)
+            return Task.FromResult(0);
+
+        var now = DateTimeOffset.UtcNow;
+
+        foreach (var entity in entityList)
+            entity.UpdatedAt = now;
+
+        var sql = $"""
+                   UPDATE {TableName}
+                   SET {UpdateClause}
+                   WHERE id = @Id;
+                   """;
+
+        return Database.Connection.ExecuteAsync(
+            sql,
+            entityList,
+            Database.Transaction);
+    }
+    
+    private static string ToSnakeCase(string input)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+            return input;
+
+        return Regex.Replace(
+            input,
+            "(?<!^)([A-Z][a-z]|(?<=[a-z])[A-Z])",
+            "_$1").ToLowerInvariant();
     }
 }

@@ -1,0 +1,239 @@
+permissions
+user_roles
+role_permissions
+sessions
+api_keys
+password_reset_tokens
+email_verification_tokens
+mfa_secrets
+login_attempts
+user_devices
+2) Perfil e cadastro
+
+Se você quiser separar identidade de dados cadastrais.
+
+user_profiles
+user_addresses
+user_preferences
+user_contacts
+user_avatars
+3) Clientes e lojistas
+
+Em sistema de pagamento, quase sempre existe quem paga e quem recebe.
+
+customers
+merchants
+merchant_users
+merchant_settings
+merchant_documents
+merchant_addresses
+merchant_contacts
+4) Contas bancárias e recebimento
+
+Para saque, liquidação e repasse.
+
+bank_accounts
+payout_accounts
+beneficiaries
+recipient_accounts
+account_verifications
+5) Pagamentos
+
+O coração do sistema.
+
+payment_intents
+payments
+payment_methods
+payment_attempts
+payment_authorizations
+captured_payments
+failed_payments
+pending_payments
+scheduled_payments
+6) Cartões e tokens
+
+Se tiver cartão.
+
+card_tokens
+cards
+card_brands
+card_bin_ranges
+card_verifications
+7) PIX
+
+Se o sistema for brasileiro e aceitar PIX.
+
+pix_keys
+pix_qr_codes
+pix_transactions
+pix_copies
+pix_refunds
+pix_webhooks
+8) Boletos
+
+Se for suportar boleto.
+
+boletos
+boleto_payments
+boleto_remittances
+boleto_return_files
+9) Reembolsos e estornos
+
+Muito importante em pagamentos.
+
+refunds
+refund_items
+chargebacks
+chargeback_cases
+chargeback_evidence
+reversals
+10) Tarifas e taxas
+
+Para comissão da plataforma e custos por transação.
+
+fees
+fee_rules
+fee_charges
+merchant_fees
+platform_fees
+fee_schedules
+11) Ledger / contabilidade
+
+Essa parte deixa o sistema realmente sério.
+
+accounts
+ledger_entries
+ledger_transactions
+balance_snapshots
+balances
+holds
+reservations
+settlement_entries
+12) Liquidação e repasse
+
+Para levar dinheiro para o recebedor final.
+
+settlements
+settlement_batches
+payouts
+payout_batches
+payout_items
+transfer_orders
+13) Chargeback e disputa
+
+Se cartão existir, isso vira necessário.
+
+disputes
+dispute_evidence
+dispute_events
+chargeback_reasons
+chargeback_status_history
+14) Idempotência e mensageria
+
+Essencial para API + Kafka + Rabbit.
+
+idempotency_keys
+outbox_messages
+inbox_messages
+processed_messages
+dead_letters
+integration_events
+15) Webhooks
+
+Para notificar sistemas externos.
+
+webhook_endpoints
+webhook_deliveries
+webhook_delivery_attempts
+webhook_signatures
+webhook_events
+16) Notificações
+
+Se o sistema enviar e-mail, SMS, push, etc.
+
+notifications
+notification_templates
+notification_preferences
+notification_deliveries
+notification_channels
+17) Auditoria e rastreabilidade
+
+Muito útil em fintech.
+
+audit_logs
+audit_events
+activity_logs
+change_logs
+admin_actions
+18) Compliance e segurança
+
+Se quiser um sistema bem completo mesmo.
+
+kyc_profiles
+kyc_documents
+kyc_checks
+aml_checks
+fraud_checks
+risk_scores
+sanctions_checks
+19) Operação e suporte
+
+Para administração do sistema.
+
+support_tickets
+ticket_messages
+internal_notes
+system_alerts
+job_runs
+scheduled_jobs
+migration_history
+schema_migrations
+20) Catálogo e configuração
+
+Se o sistema tiver configurações dinâmicas.
+
+currencies
+countries
+payment_providers
+payment_provider_configs
+system_settings
+feature_flags
+Se você quiser começar forte sem exagerar, eu separaria assim:
+Núcleo mínimo bem completo
+users
+roles
+permissions
+user_roles
+role_permissions
+refresh_tokens
+customers
+merchants
+merchant_users
+bank_accounts
+payment_intents
+payments
+payment_methods
+refunds
+chargebacks
+accounts
+ledger_entries
+balances
+settlements
+payouts
+idempotency_keys
+outbox_messages
+inbox_messages
+webhook_endpoints
+webhook_deliveries
+audit_logs
+schema_migrations
+Coisas que eu deixaria para fase 2
+kyc_*
+aml_*
+fraud_checks
+disputes
+card_*
+pix_*
+boleto_*
+notifications
+support_tickets

@@ -6,6 +6,8 @@ public interface BaseRepository<TEntity, TId>
         TId id
     );
 
+    Task<int> CountAsync();
+    
     Task<bool> ExistsByIdAsync(
         TId id
     );
@@ -22,8 +24,18 @@ public interface BaseRepository<TEntity, TId>
         TId id
     );
     
-    Task<long> DeleteAndCountAsync(
+    Task<int> DeleteAndCountAsync(
         TId id
     );
-    
+
+    Task<int> DeleteAllAsync();
+
+    Task<int> DeleteAllByIdAsync(
+        IEnumerable<TId> ids
+    );
+
+    Task<int> CreateAllAsync(IEnumerable<TEntity> entities);
+
+    Task<int> UpdateAllAsync(IEnumerable<TEntity> entities);
+
 }

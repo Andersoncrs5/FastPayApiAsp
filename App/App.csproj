@@ -7,12 +7,14 @@
         <InvariantGlobalization>true</InvariantGlobalization>
         <PublishAot>true</PublishAot>
         <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+        <AllowMissingPrunePackageData>true</AllowMissingPrunePackageData>
     </PropertyGroup>
 
     <ItemGroup>
         <PackageReference Include="Asp.Versioning.Mvc" Version="10.0.0" />
         <PackageReference Include="AspNetCore.HealthChecks.NpgSql" Version="9.0.0" />
         <PackageReference Include="AspNetCore.HealthChecks.Redis" Version="9.0.0" />
+        <PackageReference Include="BCrypt.Net-Next" Version="4.2.0" />
         <PackageReference Include="Confluent.Kafka" Version="2.15.0" />
         <PackageReference Include="Dapper" Version="2.1.79" />
         <PackageReference Include="Dapper.AOT" Version="1.0.52" />
@@ -45,19 +47,30 @@
     </ItemGroup>
 
     <ItemGroup>
+      <Folder Include="Modules\Auth\Controller\" />
+      <Folder Include="Modules\Auth\Model\" />
+      <Folder Include="Modules\Auth\Repositories\" />
+      <Folder Include="Modules\Auth\Validators\" />
       <Folder Include="Modules\Base\Controller\" />
       <Folder Include="Modules\Base\Dto\Requests\" />
       <Folder Include="Modules\Base\Dto\Responses\" />
+      <Folder Include="Modules\Base\Gateway\" />
       <Folder Include="Modules\Base\Mapper\" />
       <Folder Include="Modules\Base\Model\" />
       <Folder Include="Modules\Base\Repositories\" />
-      <Folder Include="Modules\Base\Services\" />
+      <Folder Include="Modules\Base\Services\Base\" />
+      <Folder Include="Modules\Base\Services\Provider\" />
       <Folder Include="Modules\Base\Validators\" />
+      <Folder Include="Modules\RefreshToken\Controller\" />
+      <Folder Include="Modules\RefreshToken\Dto\Requests\" />
+      <Folder Include="Modules\RefreshToken\Mapper\" />
+      <Folder Include="Modules\RefreshToken\Validators\" />
+      <Folder Include="Modules\Role\Controller\" />
+      <Folder Include="Modules\Role\Gateway\" />
+      <Folder Include="Modules\Role\Validators\" />
+      <Folder Include="Modules\UserRole\Controller\" />
+      <Folder Include="Modules\UserRole\Validators\" />
       <Folder Include="Modules\User\Controller\" />
-      <Folder Include="Modules\User\Dto\Requests\" />
-      <Folder Include="Modules\User\Dto\Responses\" />
-      <Folder Include="Modules\User\Mapper\" />
-      <Folder Include="Modules\User\Services\" />
       <Folder Include="Modules\User\Validators\" />
     </ItemGroup>
 
