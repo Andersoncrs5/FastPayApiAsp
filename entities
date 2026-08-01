@@ -1,7 +1,6 @@
 permissions
 user_roles
 role_permissions
-refresh_tokens
 sessions
 api_keys
 password_reset_tokens
