@@ -1,5 +1,7 @@
 using App.Config.Database;
 using App.Config.Tx;
+using App.Modules.RefreshToken.Model;
+using App.Modules.RefreshToken.Repositories;
 using App.Modules.Role.Model;
 using App.Modules.Role.Repositories;
 using App.Modules.User.Model;
@@ -27,6 +29,7 @@ public abstract class BaseIntegrationTest : IAsyncDisposable
     protected readonly UserRepository UserRepository;
     protected readonly RoleRepository RoleRepository;
     protected readonly UserRoleRepository UserRoleRepository;
+    protected readonly RefreshTokenRepository RefreshTokenRepository;
 
     protected BaseIntegrationTest(DatabaseFixture factory)
     {
@@ -44,8 +47,31 @@ public abstract class BaseIntegrationTest : IAsyncDisposable
         UserRepository = new UserRepository(session);
         RoleRepository = new RoleRepository(session);
         UserRoleRepository = new UserRoleRepository(session);
+        RefreshTokenRepository = new RefreshTokenRepository(session);
     }
 
+    protected async Task<RefreshTokenEntity> CreateRefreshToken(
+        long userId,
+        string? tokenHash = null,
+        DateTimeOffset? expiresAt = null,
+        DateTimeOffset? revokedAt = null)
+    {
+        var entity = new RefreshTokenEntity
+        {
+            Id = Faker.Random.Long(10_000_000, 9_999_999_999),
+            UserId = userId,
+            TokenHash = tokenHash ?? Guid.NewGuid().ToString("N"),
+            ExpiresAt = expiresAt ?? DateTimeOffset.UtcNow.AddDays(30),
+            RevokedAt = revokedAt,
+            CreatedAt = DateTimeOffset.UtcNow,
+            UpdatedAt = DateTimeOffset.UtcNow
+        };
+
+        await RefreshTokenRepository.CreateAsync(entity);
+
+        return entity;
+    }
+    
     protected async Task<UserRoleEntity> CreateUserRole(long userId, long roleId, long? assignedById = null)
     {
         var entity = new UserRoleEntity
