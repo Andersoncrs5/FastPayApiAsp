@@ -5,5 +5,5 @@ namespace App.Modules.Role.Services.Base;
 
 public interface IFindRolesByIdsService
 {
-    Task<Result<List<RoleEntity>>> FindByIdsAsync(List<long> ids);
+    Task<Result<List<RoleEntity>>> Execute(List<long> ids);
 }

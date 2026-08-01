@@ -8,7 +8,7 @@ namespace App.Modules.Role.Services.Provider;
 public class FindRolesByIdsService(IUnitOfWork uow)
     : IFindRolesByIdsService
 {
-    public async Task<Result<List<RoleEntity>>> FindByIdsAsync(List<long> ids)
+    public async Task<Result<List<RoleEntity>>> Execute(List<long> ids)
     {
         if (ids.Count == 0) return Result<List<RoleEntity>>.Success([]);
 

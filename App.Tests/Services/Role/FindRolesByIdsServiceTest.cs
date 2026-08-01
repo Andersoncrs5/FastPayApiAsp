@@ -56,7 +56,7 @@ public sealed class FindRolesByIdsServiceTest
         _roleRepository.GetAllByIdsAsync(ids)
             .Returns(roles);
 
-        var result = await _service.FindByIdsAsync(ids);
+        var result = await _service.Execute(ids);
 
         result.Should().NotBeNull();
         result.IsSuccess.Should().BeTrue();
@@ -72,7 +72,7 @@ public sealed class FindRolesByIdsServiceTest
     {
         var ids = new List<long>();
 
-        var result = await _service.FindByIdsAsync(ids);
+        var result = await _service.Execute(ids);
 
         result.Should().NotBeNull();
         result.IsSuccess.Should().BeTrue();
@@ -93,7 +93,7 @@ public sealed class FindRolesByIdsServiceTest
             .Throws(new Exception("Database connection failed"));
 
         var ex = await Assert.ThrowsAsync<Exception>(
-            () => _service.FindByIdsAsync(ids));
+            () => _service.Execute(ids));
 
         ex.Message.Should().Be("Database connection failed");
 
